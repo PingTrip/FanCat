@@ -99,7 +99,7 @@ if __name__ == "__main__":
                         dest="target_temp",
                         help='Target temperature (celcius) to maintain GPU. Defaults to 80.',
                         metavar='[40-90]',
-                        type=int, choices=range(40, 90),
+                        type=int, choices=range(40, 88),
                         default=80)
     parser.add_argument('--daemon',
                         dest="daemonize",
@@ -108,9 +108,9 @@ if __name__ == "__main__":
                         default=False)
     parser.add_argument('-m', '--min-fan-speed',
                         dest="min_fan_speed",
-                        help='Minimum fan speed allowed (20-100). Defaults to 27.',
-                        metavar='[20-100]',
-                        type=int, choices=range(40, 100),
+                        help='Minimum fan speed allowed (30-100). Defaults to 40.',
+                        metavar='[30-100]',
+                        type=int, choices=range(30, 100),
                         default=40)
 
     args = parser.parse_args()
