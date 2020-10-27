@@ -11,14 +11,14 @@ import daemon
 def clean_exit(signal_received, frame):
     if args.debug:
         print('SIGINT or CTRL-C detected. Exiting.')
-    adjust_fan_speed(True, exiting=True)
+    adjust_fan_speed(exiting=True)
     enable_fan_control(False)
     sys.exit(0)
 
 
 def enable_fan_control(enable):
     if args.debug:
-        print(f'Enabling fan control: {enable}')
+        print(f'  Enabling fan control: {enable}')
     subprocess.run(['nvidia-settings', '-a', f'GPUFanControlState={int(enable)}'], stdout=subprocess.PIPE)
 
 
@@ -31,19 +31,29 @@ def get_temp():
     cur_max_temp = int(max(cur_temps))
 
     if args.debug:
-        print(f'Current GPU temp: {cur_max_temp}')
+        print(f'  Current GPU temp: {cur_max_temp}')
 
     return cur_max_temp
 
 
-def adjust_fan_speed(increase, exiting=False):
+def adjust_fan_speed(exiting=False):
     results = subprocess.run(['nvidia-settings', '-tq', 'GPUCurrentFanSpeed'], stdout=subprocess.PIPE)
     cur_max_speed = max([int(x) for x in results.stdout.decode().splitlines()])
 
     if args.debug:
-        print(f'Current GPU fan speed: {cur_max_speed}')
+        print(f'  Current GPU fan speed: {cur_max_speed}')
 
-    adj_value = 2 if increase else -2
+    cur_temp = get_temp()
+
+    adj_value = 0
+
+    if cur_temp > args.target_temp:
+        # Allow for rapid spin-up
+        adj_value = 5 if (cur_temp - args.target_temp) >= 2 else 10
+    elif cur_temp < args.target_temp - 2:
+        # Slow spin-down
+        adj_value = -2
+
     new_speed = cur_max_speed + adj_value
 
     # Sanity check for max/min fan speeds
@@ -58,7 +68,7 @@ def adjust_fan_speed(increase, exiting=False):
     if new_speed != cur_max_speed:
         results = subprocess.run(['nvidia-settings', '-a', f'GPUTargetFanSpeed={new_speed}'], stdout=subprocess.PIPE)
         if args.debug:
-            print(f'Adjusting fan speed to: {new_speed}')
+            print(f'  Adjusting fan speed to: {new_speed}')
 
 
 def process_loop():
@@ -67,13 +77,7 @@ def process_loop():
     while True:
         if args.debug:
             print("Polling..")
-
-        cur_temp = get_temp()
-        if cur_temp > args.target_temp:
-            adjust_fan_speed(True)
-        elif cur_temp < args.target_temp - 2:
-            adjust_fan_speed(False)
-
+        adjust_fan_speed()
         time.sleep(5)
 
 
@@ -106,8 +110,8 @@ if __name__ == "__main__":
                         dest="min_fan_speed",
                         help='Minimum fan speed allowed (20-100). Defaults to 27.',
                         metavar='[20-100]',
-                        type=int, choices=range(20, 100),
-                        default=30)
+                        type=int, choices=range(40, 100),
+                        default=40)
 
     args = parser.parse_args()
 
