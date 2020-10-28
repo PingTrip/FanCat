@@ -45,16 +45,13 @@ def adjust_fan_speed(exiting=False):
 
     cur_temp = get_temp()
 
-    adj_value = 0
+    new_speed = 0
+    temp_range = [args.target_temp - 2, args.target_temp]
 
-    if cur_temp > args.target_temp:
-        # Allow for rapid spin-up
-        adj_value = 5 if (cur_temp - args.target_temp) >= 2 else 10
-    elif cur_temp < args.target_temp - 2:
-        # Slow spin-down
-        adj_value = -2
-
-    new_speed = cur_max_speed + adj_value
+    if cur_temp > temp_range[0]:
+        new_speed = max(cur_max_speed, 100 * (cur_temp - temp_range[0]) // (temp_range[1] - temp_range[0]))
+    elif cur_temp <= temp_range[0]:
+        new_speed = cur_max_speed - 4  # Linear spin-down
 
     # Sanity check for max/min fan speeds
     if new_speed > 100:
@@ -63,6 +60,7 @@ def adjust_fan_speed(exiting=False):
         new_speed = args.min_fan_speed
 
     if exiting:
+        print(f'  Exiting, setting fan speed: {args.min_fan_speed}')
         new_speed = args.min_fan_speed
 
     if new_speed != cur_max_speed:
